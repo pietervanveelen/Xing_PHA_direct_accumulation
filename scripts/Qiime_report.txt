@@ -1,0 +1,202 @@
+Importing data:
+qiime tools import
+
+	--type 'SampleData[PairedEndSequencesWithQuality]'
+
+	--input-path /export/jippe/jsil/projects/16S/XYIN/Q16712/input/raw_data/
+
+	--output-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_PairEndSequences.qza
+
+	--input-format PairedEndFastqManifestPhred33V2
+
+Demultiplexing:
+qiime cutadapt demux-paired
+
+	--m-forward-barcodes-column BarcodeSequence
+
+	--m-forward-barcodes-file /export/jippe/jsil/projects/16S/XYIN/Q16712/input/XYIN_16S_515F_926R_07092023_Q16712_XYIN@metadata.txt
+
+	--i-seqs /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_PairEndSequences.qza
+
+	--p-error-rate 0
+
+	--o-per-sample-sequences /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_demux.qza
+
+	--o-untrimmed-sequences /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_untrimmed.qza
+
+	--p-cores 16
+
+
+	--verbose
+
+Trimming paired ends:
+qiime cutadapt trim-paired
+
+	--i-demultiplexed-sequences /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_demux.qza
+
+	--p-front-f GTGYCAGCMGCCGCGGTAA
+
+	--p-front-r CCGYCAATTYMTTTRAGTTT
+
+	--p-discard-untrimmed
+
+	--o-trimmed-sequences /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_trimmed_demux_seqs.qza
+
+	--p-cores 16
+
+Denoising paired end:
+qiime dada2 denoise-paired
+
+	--i-demultiplexed-seqs /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_trimmed_demux_seqs.qza
+
+	--p-trim-left-f 5
+
+	--p-trim-left-r 5
+
+	--p-trunc-len-f 200
+
+	--p-trunc-len-r 190
+
+	--o-table
+/export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_table.qza
+
+	--o-representative-sequences /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_representative_sequences.qza
+
+	--o-denoising-stats /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_denoising_stats.qza
+
+	--p-n-threads 16
+
+Trimmed demux summary:
+qiime demux summarize
+
+	--i-data /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_trimmed_demux_seqs.qza
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_trimmed_demux_seqs.qzv
+
+Exporting respresentative sequences:
+qiime tools export
+
+	--input-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_representative_sequences.qza
+
+	--output-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/export/
+
+Visualizing table:
+qiime feature-table summarize
+
+	--i-table /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_table.qza
+
+	--m-sample-metadata-file /export/jippe/jsil/projects/16S/XYIN/Q16712/input/XYIN_16S_515F_926R_07092023_Q16712_XYIN@metadata.txt
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_table.qzv
+
+Exporting table:
+qiime tools export
+
+	--input-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_table.qza
+
+	--output-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/export/
+
+Multiple sequence alignment met Mafft:
+qiime alignment mafft
+
+	--i-sequences /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_representative_sequences.qza
+
+	--o-alignment /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_aligned-rep-seqs.qza
+
+	--p-n-threads 16
+
+Visualizing denoising stats:
+qiime metadata tabulate
+
+	--m-input-file /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_denoising_stats.qza
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_denoising_stats.qzv
+
+Visualizing representative sequences:
+qiime feature-table tabulate-seqs
+
+	--i-data /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_representative_sequences.qza
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_representative_sequences.qzv
+
+Classify reads:
+qiime feature-classifier classify-sklearn
+
+	--i-classifier /export/jippe/jsil/db/Qiime2/qiime2-2022.11/Silva/138/silva-138-99-nb-classifier.qza
+
+	--i-reads /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_representative_sequences.qza
+
+	--o-classification /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_silva-138-99-nb-classifier.qza
+
+	--p-n-jobs 16
+
+	--p-reads-per-batch 200
+
+Masking MSA:
+qiime alignment mask
+
+	--i-alignment /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_aligned-rep-seqs.qza
+
+	--o-masked-alignment /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_masked_aligned-rep-seqs.qza
+
+Making phylogenetic tree:
+qiime phylogeny fasttree
+
+	--i-alignment /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_masked_aligned-rep-seqs.qza
+
+	--o-tree /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_unrooted-tree.qza
+
+	--p-n-threads 16
+
+Determining midpoint:
+
+qiime phylogeny midpoint-root
+
+	--i-tree /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_unrooted-tree.qza
+
+	--o-rooted-tree /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_rooted-tree.qza
+
+Exporting rooted tree:
+qiime tools export
+
+	--input-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_rooted-tree.qza
+
+	--output-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/export/
+
+Retrieving_alpha_rarefaction:
+qiime diversity alpha-rarefaction
+
+	--i-table /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_table.qza
+
+	--i-phylogeny /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_rooted-tree.qza
+
+	--p-max-depth 60088
+
+	--m-metadata-file /export/jippe/jsil/projects/16S/XYIN/Q16712/input/XYIN_16S_515F_926R_07092023_Q16712_XYIN@metadata.txt
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_alpha-rarefaction.qzv
+
+Visualize classification:
+qiime metadata tabulate
+
+	--m-input-file /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_silva-138-99-nb-classifier.qza
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_silva-138-99-nb-classifier.qzv
+
+Exporting classifications: qiime tools export
+
+	--input-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_silva-138-99-nb-classifier.qza
+
+	--output-path /export/jippe/jsil/projects/16S/XYIN/Q16712/output/export/
+
+qiime taxa barplot
+
+	--i-table /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_table.qza
+
+	--i-taxonomy /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Artifacts_qza/XYIN_16S_515F_926R_07092023_Q16712_XYIN_silva-138-99-nb-classifier.qza
+
+
+	--m-metadata-file /export/jippe/jsil/projects/16S/XYIN/Q16712/input/XYIN_16S_515F_926R_07092023_Q16712_XYIN@metadata.txt
+
+	--o-visualization /export/jippe/jsil/projects/16S/XYIN/Q16712/output/Visualization_qzv/XYIN_16S_515F_926R_07092023_Q16712_XYIN_taxonomy_barplot.qzv
+

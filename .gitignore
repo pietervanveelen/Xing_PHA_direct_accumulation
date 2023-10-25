@@ -36,14 +36,38 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
-# R Environment Variables
-.Renviron
+# intermediate files
+*_cache/
+*_files/
+Prelim_*
+scripts/__*
+scripts/*.zip
 
-# pkgdown site
-docs/
+# manuscripts
+manuscript/
 
-# translation temp files
-po/*~
+# redundant figures
+/figures/formatted_figures/
+/figures/*.png
+/figures/*.jpg
+/figures/*.tiff
 
-# RStudio Connect folder
-rsconnect/
+# redundant data
+/raw_data/
+/*_removal.Rmd
+/*.rds
+/input_data/RDS_files/
+/input_data/*.qzv
+/input_data/*trimmed_demux_seqs.qza
+/input_data/*representative_sequences.qza
+/input_data/*metadata.txt
+/input_data/*.xlsx
+
+/output_data/test*
+/output_data/*.rds
+/output_data/*.biom
+/output_data/Table*
+/output_data/*.fasta
+/output_data/*.xlsx
+/output_data/*.jpg
+/output_data/*euk.csv
