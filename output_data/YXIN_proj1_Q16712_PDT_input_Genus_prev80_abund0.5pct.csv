@@ -1,0 +1,41 @@
+0_Index,1_Name,2_Tax,3_mean_genus_perc,4_perc_samples,Family
+1,Flavobacterium,genus,10.642432943007998,100,Flavobacteriaceae
+2,Bdellovibrio,genus,2.4387786815133716,100,Bdellovibrionaceae
+3,Acinetobacter,genus,1.9654505122032222,100,Moraxellaceae
+5,Alishewanella,genus,0.6850536247347486,90,Alteromonadaceae
+6,Ferribacterium,genus,3.4909541740895476,100,Rhodocyclaceae
+7,Thauera,genus,1.6971317996386615,100,Rhodocyclaceae
+8,Terrimonas,genus,4.619149487412582,100,Chitinophagaceae
+9,Zoogloea,genus,2.8510060863460254,100,Rhodocyclaceae
+12,Dokdonella,genus,1.577873746240107,100,Rhodanobacteraceae
+13,env.OPS_17,genus,2.1066136784926575,100,env.OPS_17
+15,Pseudomonas,genus,0.928682587832955,100,Pseudomonadaceae
+17,NS9_marine_group,genus,2.8134750599420806,100,NS9_marine_group
+19,Brevundimonas,genus,0.5664919237025692,100,Caulobacteraceae
+20,Dechloromonas,genus,1.7540181644512867,100,Rhodocyclaceae
+21,Aquabacterium,genus,1.2859618319255637,100,Comamonadaceae
+22,Sphaerotilus,genus,0.5597627080536616,93.33333333333333,Comamonadaceae
+24,Leptospira,genus,0.6853048183068041,100,Leptospiraceae
+25,37-13,genus,1.6950726279625554,100,37-13
+26,OLB12,genus,1.2373241217715578,100,Microscillaceae
+28,AAP99,genus,0.8041974951908524,100,Sutterellaceae
+29,OLB8,genus,1.226188433659617,100,Saprospiraceae
+30,AKYH767,genus,1.8897808078289704,100,AKYH767
+31,Vicingus,genus,0.50339064894047,90,Cryomorphaceae
+32,Sulfuritalea,genus,0.8084292252617526,100,Rhodocyclaceae
+33,SJA-28,genus,1.0703252715597935,100,SJA-28
+34,Chitinivorax,genus,0.5672746120375215,100,Chitinimonadaceae
+35,NS11-12_marine_group,genus,1.1847102398175677,100,NS11-12_marine_group
+36,Ferruginibacter,genus,1.1944928316751962,100,Chitinophagaceae
+38,OM190,genus,0.7093098493495639,100,OM190
+40,Nitrospira,genus,0.6739997005914553,100,Nitrospiraceae
+4,Saprospiraceae,family,6.560918405104542,100,Saprospiraceae
+10,Comamonadaceae,family,3.578515900938381,100,Comamonadaceae
+11,Anaerolineaceae,family,2.293002607862846,100,Anaerolineaceae
+14,Rhodocyclaceae,family,2.4655377966239858,100,Rhodocyclaceae
+16,Rhodobacteraceae,family,0.7398460070630504,100,Rhodobacteraceae
+18,Hydrogenophilaceae,family,0.9532911878095774,100,Hydrogenophilaceae
+23,Family of Micavibrionales,family,0.5568018405497843,100,Family of Micavibrionales
+27,Family of Chitinophagales,family,1.2108158876260833,100,Family of Chitinophagales
+37,Chitinophagaceae,family,0.8185165190426953,100,Chitinophagaceae
+39,Family of Bacteroidia,family,0.6041374458060632,100,Family of Bacteroidia

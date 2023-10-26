@@ -829,6 +829,70 @@ psdata_Genus_highN_rel = transform_sample_counts(psdata_Genus_highN, function(x)
 ps_Genus = psmelt(psdata_Genus) # n=426
 ps_Genus_lowN = psmelt(psdata_Genus_lowN) # n= 426
 ps_Genus_highN = psmelt(psdata_Genus_highN) # n= 357</code></pre>
+<pre class="r"><code># create absolute genus physeq
+# psdata Genus 
+psdata_Genus_abs = tax_glom(psdata, &quot;Genus&quot;)
+
+long = 
+psdata_Genus_abs %&gt;% 
+  psmelt() %&gt;% 
+  as_tibble()
+
+# calculate genus-level taxa_sums across samples and calculate taxa prevalence %
+wide_taxsums_prev = long %&gt;% 
+  select(Sample, Kingdom:Genus, Abundance) %&gt;% 
+  pivot_wider(names_from = &quot;Sample&quot;, values_from = &quot;Abundance&quot;) %&gt;% 
+  rowwise() %&gt;% 
+  mutate(taxa_sums = sum(c_across(any_of(starts_with(&quot;YXIN&quot;)))),
+         prevalence = mean(c_across(any_of(starts_with(&quot;YXIN&quot;))) != 0, na.rm = TRUE) * 100) %&gt;% 
+  select(Kingdom:Genus, prevalence, taxa_sums, everything()) 
+
+# make data long again
+long_taxsums_prev = 
+wide_taxsums_prev %&gt;%
+  pivot_longer(cols = any_of(starts_with(&quot;YXIN&quot;)), names_to = &quot;Sample&quot;, values_to = &quot;Abundance&quot;)
+
+# calculate sample_sums for sample set
+long_sampsums = 
+wide_taxsums_prev %&gt;% 
+  pivot_longer(cols = any_of(starts_with(&quot;YXIN&quot;)), names_to = &quot;Sample&quot;, values_to = &quot;Abundance&quot;) %&gt;% 
+  select(Genus, Sample, Abundance) %&gt;% 
+  pivot_wider(names_from = &quot;Genus&quot;, values_from = &quot;Abundance&quot;) %&gt;% 
+  rowwise() %&gt;% 
+  mutate(sample_sums = sum(c_across(2:ncol(.)))) %&gt;% 
+  select(Sample, sample_sums, everything()) %&gt;% 
+  pivot_longer(cols = c(3:ncol(.)), names_to = &quot;Genus&quot;, values_to = &quot;Abundance&quot;)
+
+## PDT data formatted
+
+# which prevalence and abundance thresholds in (%)
+# vectors should be of same lengths corresponding to the combinations to make
+prevalences = c(80, 90)
+abundances = c(0.5, 0.1)
+
+# loop over the data applying combinations of prevalences
+for(prev in prevalences) {
+  for(abun in abundances) {
+    
+inner_join(long_sampsums, long_taxsums_prev, by = c(&quot;Sample&quot;, &quot;Genus&quot;)) %&gt;% 
+  select(-Abundance.y) %&gt;% 
+  rename(Abundance.x = &quot;Abundance&quot;) %&gt;% 
+  mutate(perc_abund = Abundance/sample_sums*100) %&gt;% 
+  select(Sample, Genus, perc_abund, prevalence, &quot;genus_sums&quot; = taxa_sums, Family) %&gt;% 
+  group_by(Family, Genus, prevalence, genus_sums) %&gt;% 
+  summarise(mean_perc_abund = mean(perc_abund), max_perc_abund = max(perc_abund), min_perc_abund = min(perc_abund), .groups = &quot;drop&quot;) %&gt;% 
+  filter(prevalence &gt;= prev, mean_perc_abund &gt;= abun) %&gt;% 
+  arrange(desc(max_perc_abund)) %&gt;% 
+  mutate(`0_Index` = row_number(),
+         `1_Name` = if_else(grepl(&quot;Genus of &quot;, Genus), Family, Genus),
+         `2_Tax` = if_else(grepl(&quot;Genus of &quot;, Genus), &quot;family&quot;, &quot;genus&quot;),
+         `3_mean_genus_perc` = mean_perc_abund,
+         `4_perc_samples` = prevalence) %&gt;% 
+  select(`0_Index`, `1_Name`, `2_Tax`, `3_mean_genus_perc`, `4_perc_samples`, Family) %&gt;% 
+  arrange(desc(`2_Tax`)) %&gt;% 
+  write_csv(glue::glue(&quot;output_data/{proj}_PDT_input_Genus_prev{prev}_abund{abun}pct.csv&quot;), col_names = T)
+  }
+}</code></pre>
 <pre class="r"><code>source(&quot;scripts/avgrarefy.r&quot;)
 
 # create subset frequency matrix

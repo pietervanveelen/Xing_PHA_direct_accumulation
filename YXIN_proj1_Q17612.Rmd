@@ -359,6 +359,77 @@ ps_Genus_highN = psmelt(psdata_Genus_highN) # n= 357
 
 ```
 
+```{r create PDT input Genus}
+
+# create absolute genus physeq
+# psdata Genus 
+psdata_Genus_abs = tax_glom(psdata, "Genus")
+
+long = 
+psdata_Genus_abs %>% 
+  psmelt() %>% 
+  as_tibble()
+
+# calculate genus-level taxa_sums across samples and calculate taxa prevalence %
+wide_taxsums_prev = long %>% 
+  select(Sample, Kingdom:Genus, Abundance) %>% 
+  pivot_wider(names_from = "Sample", values_from = "Abundance") %>% 
+  rowwise() %>% 
+  mutate(taxa_sums = sum(c_across(any_of(starts_with("YXIN")))),
+         prevalence = mean(c_across(any_of(starts_with("YXIN"))) != 0, na.rm = TRUE) * 100) %>% 
+  select(Kingdom:Genus, prevalence, taxa_sums, everything()) 
+
+# make data long again
+long_taxsums_prev = 
+wide_taxsums_prev %>%
+  pivot_longer(cols = any_of(starts_with("YXIN")), names_to = "Sample", values_to = "Abundance")
+
+# calculate sample_sums for sample set
+long_sampsums = 
+wide_taxsums_prev %>% 
+  pivot_longer(cols = any_of(starts_with("YXIN")), names_to = "Sample", values_to = "Abundance") %>% 
+  select(Genus, Sample, Abundance) %>% 
+  pivot_wider(names_from = "Genus", values_from = "Abundance") %>% 
+  rowwise() %>% 
+  mutate(sample_sums = sum(c_across(2:ncol(.)))) %>% 
+  select(Sample, sample_sums, everything()) %>% 
+  pivot_longer(cols = c(3:ncol(.)), names_to = "Genus", values_to = "Abundance")
+
+## PDT data formatted
+
+# which prevalence and abundance thresholds in (%)
+# vectors should be of same lengths corresponding to the combinations to make
+prevalences = c(80, 90)
+abundances = c(0.5, 0.1)
+
+# loop over the data applying combinations of prevalences
+for(prev in prevalences) {
+  for(abun in abundances) {
+    
+inner_join(long_sampsums, long_taxsums_prev, by = c("Sample", "Genus")) %>% 
+  select(-Abundance.y) %>% 
+  rename(Abundance.x = "Abundance") %>% 
+  mutate(perc_abund = Abundance/sample_sums*100) %>% 
+  select(Sample, Genus, perc_abund, prevalence, "genus_sums" = taxa_sums, Family) %>% 
+  group_by(Family, Genus, prevalence, genus_sums) %>% 
+  summarise(mean_perc_abund = mean(perc_abund), max_perc_abund = max(perc_abund), min_perc_abund = min(perc_abund), .groups = "drop") %>% 
+  filter(prevalence >= prev, mean_perc_abund >= abun) %>% 
+  arrange(desc(max_perc_abund)) %>% 
+  mutate(`0_Index` = row_number(),
+         `1_Name` = if_else(grepl("Genus of ", Genus), Family, Genus),
+         `2_Tax` = if_else(grepl("Genus of ", Genus), "family", "genus"),
+         `3_mean_genus_perc` = mean_perc_abund,
+         `4_perc_samples` = prevalence) %>% 
+  select(`0_Index`, `1_Name`, `2_Tax`, `3_mean_genus_perc`, `4_perc_samples`, Family) %>% 
+  arrange(desc(`2_Tax`)) %>% 
+  write_csv(glue::glue("output_data/{proj}_PDT_input_Genus_prev{prev}_abund{abun}pct.csv"), col_names = T)
+  }
+}
+
+
+```
+
+
 ```{r alpha diversity rarefy}
 
 source("scripts/avgrarefy.r")
