@@ -894,7 +894,7 @@ combined_plots <- patchwork::wrap_plots(#plot_PCoA_Jac,
 # Display the combined plot
 print(combined_plots)
 
-ggsave(plot = combined_plots, filename = glue("figures/{proj}_plot_beta_diversity_all_clr.pdf"), width = 9, height =6)
+ggsave(plot = combined_plots, filename = glue("figures/{proj}_plot_beta_diversity_all_rel.pdf"), width = 9, height =6)
 
 
 ```

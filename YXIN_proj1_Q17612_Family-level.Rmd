@@ -1,0 +1,544 @@
+---
+title: "YXIN_proj1_Q16712_Family-level"
+author: "Pieter van Veelen"
+date: "2023-10-27"
+output: html_document
+---
+
+```{r library loading, message=F, echo=T, eval=T, warning=T, include=T, cache=F}
+
+## load required packages
+library(Hmisc)
+library(phyloseq)
+library(qiime2R)
+library(tidyverse)
+library(magrittr)
+library(devtools)
+library(qiime2R)
+library(here)
+library(breakaway)
+library(DivNet)
+library(openxlsx)
+library(ape)
+library(vegan)
+library(ggtext)
+library(cowplot)
+library(RColorBrewer)
+library(microbiome)
+library(lme4)
+library(lmerTest)
+library(decontam)
+library(ampvis2)
+library(glue)
+library(lubridate)
+library(DECIPHER)
+library(ensembleTax)
+library(mEQO)
+library(ggh4x)
+
+```
+
+```{r agglomerate to Family level}
+
+# psdata Family 
+psdata_Family = tax_glom(
+  transform_sample_counts(
+    psdata, 
+    function(x) x/sum(x)), "Family")
+
+# psdata Family Paper 1: Low N conditions
+psdata_Family_lowN = 
+  tax_glom(
+    prune_taxa(
+      taxa_sums(
+        subset_samples(psdata, paper_id == "first"))>0, 
+        subset_samples(psdata, paper_id == "first")), "Family")
+
+# psdata Family Paper 2: High N conditions
+psdata_Family_highN = 
+  tax_glom(
+    prune_taxa(
+      taxa_sums(
+        subset_samples(psdata, paper_id == "second"))>0, 
+        subset_samples(psdata, paper_id == "second")), "Family")
+
+# create relative abundance phyloseq objects
+psdata_Family_lowN_rel = transform_sample_counts(psdata_Family_lowN, function(x) x/sum(x))
+psdata_Family_highN_rel = transform_sample_counts(psdata_Family_highN, function(x) x/sum(x))
+
+
+# psmelts Family
+ps_Family = psmelt(psdata_Family) # n=259
+ps_Family_lowN = psmelt(psdata_Family_lowN) # n= 259
+ps_Family_highN = psmelt(psdata_Family_highN) # n= 220
+
+```
+
+
+
+```{r alpha diversity rarefy}
+
+source("scripts/avgrarefy.r")
+
+# create subset frequency matrix
+YXIN_matrix_Family_lowN <- as(t(otu_table(psdata_Family_lowN)), "matrix")
+YXIN_matrix_Family_highN <- as(t(otu_table(psdata_Family_highN)), "matrix")
+
+# determine minimal sampling depth
+min_sample_Family_lowN <- min(sample_sums(psdata_Family_lowN)) # 42061
+min_sample_Family_highN <- min(sample_sums(psdata_Family_highN)) # 50627
+
+
+# rarefaction taking mean of 100 iterations
+set.seed(711)
+YXIN_matrix_Family_lowN_rare42061_table = avgrarefy(x=YXIN_matrix_Family_lowN, sample = min_sample_lowN, iterations = 100, seed = 711)
+YXIN_matrix_Family_highN_rare50627_table = avgrarefy(x=YXIN_matrix_Family_highN, sample = min_sample_highN, iterations = 100, seed = 711)
+
+
+# create phyloseq object with rarefied data
+# low N
+psdata_YXIN_lowN_rare_Family <- psdata_Family_lowN
+otu_rare_Family_lowN = otu_table(data.frame(t(YXIN_matrix_Family_lowN_rare42061_table)), taxa_are_rows = TRUE)
+otu_table(psdata_YXIN_lowN_rare_Family) <- otu_rare_Family_lowN
+
+# high N
+psdata_YXIN_highN_rare_Family <- psdata_Family_highN
+otu_rare_Family_highN = otu_table(data.frame(t(YXIN_matrix_Family_highN_rare50627_table)), taxa_are_rows = TRUE)
+otu_table(psdata_YXIN_highN_rare_Family) <- otu_rare_Family_highN
+
+```
+
+### All data are ready for analysis of both papers
+Below for now only microbial diversity analysis of Paper 1: low N samples
+
+#### Alpha Diversity
+
+```{r plot alpha diversity rare, message=F, echo=T, eval=T, warning=T, include=T, cache=F}
+
+# calculate alpha diversity: richness & Shannon on Family level
+# input = 
+psdata_YXIN_lowN_rare_Family 
+
+# rarefied
+alpha_Family <- estimate_richness(psdata_YXIN_lowN_rare_Family, measures = c("Observed", "Chao1", "Shannon", "Simpson"))
+alpha_Family$Sample <- row.names(alpha_Family)
+
+metadata_Family = 
+  sample_data(psdata_YXIN_lowN_rare_Family) %>% 
+  data.frame() %>% 
+  as_tibble() %>% 
+  mutate(Sample = sample_names(psdata_YXIN_lowN_rare_Family)) %>% 
+  select(Sample, everything()) 
+
+# join alpha diversity with metadata
+alpha2_Family <- inner_join(metadata_Family, alpha_Family, by = "Sample") #%>% 
+  #mutate(biofilm = factor(biofilm, levels = c("Broth", "Biofilm")))
+
+# plot alpha diversity
+Chao1_Family <- 
+alpha2_Family %>% 
+ggplot(aes(x=time, y=Chao1, color = substrate, fill = substrate)) +
+  #stat_summary(fun = median, geom = "bar", alpha = 0.3) +
+  geom_point(aes(#shape = sampling_day, 
+                 fill = substrate,
+                 color = substrate),
+                 #position = position_jitter(width = 0.3)
+                 , size = 2, show.legend = T) + 
+    geom_line(aes(group = substrate, 
+                 color = substrate),
+                 , linewidth = 1,alpha=0.5, show.legend = F) + 
+  scale_color_manual(values = brewer.pal(6, "Paired")) +
+  scale_fill_manual(values = brewer.pal(6, "Paired")) +
+  scale_y_continuous(limits = c(0,NA)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  theme(#legend.text = element_markdown(),
+        legend.key.size = unit(7, "pt"),
+        #axis.ticks.x = element_blank(), 
+        strip.background = element_rect(fill="white", colour = "white"),
+        axis.title.y = element_text(hjust = 0.5),
+        strip.placement = "outside",
+        legend.position = "bottom",
+        panel.border = element_rect(colour = "black", fill = NA)) +
+  labs(y = expression("Family Chao1"),
+       x = NULL) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  facet_nested(~ sludge_source + replicate, scales = "free", space = "free_x")
+
+
+# print Chao1 Family
+print(Chao1_Family)
+
+
+
+# plot alpha diversity
+Shannon_Family <- 
+alpha2_Family %>% 
+ggplot(aes(x=time, y=Shannon, color = substrate, fill = substrate)) +
+  #stat_summary(fun = median, geom = "bar", alpha = 0.3) +
+  geom_point(aes(#shape = sampling_day, 
+                 fill = substrate,
+                 color = substrate),
+                 #position = position_jitter(width = 0.3)
+                 , size = 2, show.legend = T) + 
+    geom_line(aes(group = substrate, 
+                 color = substrate),
+                 , linewidth = 1,alpha=0.5, show.legend = F) + 
+  scale_color_manual(values = brewer.pal(6, "Paired")) +
+  scale_fill_manual(values = brewer.pal(6, "Paired")) +
+  scale_y_continuous(limits = c(0,NA)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  theme(#legend.text = element_markdown(),
+        legend.key.size = unit(7, "pt"),
+        #axis.ticks.x = element_blank(), 
+        strip.background = element_rect(fill="white", colour = "white"),
+        axis.title.y = element_text(hjust = 0.5),
+        strip.placement = "outside",
+        legend.position = "bottom",
+        panel.border = element_rect(colour = "black", fill = NA)) +
+  labs(y = expression("Family Shannon"),
+       x = NULL) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  facet_nested(~ sludge_source + replicate, scales = "free", space = "free_x")
+
+print(Shannon_Family)
+
+# create plot
+prow_Family = 
+  plot_grid(
+  plot_grid(Chao1_Family + theme(legend.position = "none"), 
+            Shannon_Family + theme(legend.position = "none"),
+                   align = "hv",
+                   labels = c("A", "B"),
+                   hjust = -1, 
+                   nrow = 2),
+  get_legend(Chao1_Family), 
+  nrow = 2 , 
+  rel_heights = c(5, 1))
+
+
+# show plot
+prow_Family
+
+# save plot
+ggsave(prow_Family, filename = glue("figures/{proj}_plot_Family_alpha_div.pdf"), width = 7, height = 5)
+ 
+
+```
+
+```{r write Family tables}
+
+# paper 1 only
+### write rel abund data plus other tax info
+ps_Family_lowN %>% 
+  # filter(!grepl("mock", combined), # remove mock communities
+  #        Sample_mock != "blank") %>% # remove NC blanks
+  as_tibble() %>% 
+  mutate(across(everything(),  ~str_replace_all(., ",", "."))) %>% 
+  mutate(across(where(~ all(grepl("^-?\\d*\\.?\\d*$", .))), as.numeric)) %>% 
+  select(Sample, OTU, Abundance, Kingdom:Family, everything()) %>% 
+  group_by_at(vars(Sample, Kingdom:Family)) %>% 
+  summarise(rel_abund = sum(Abundance), .groups = "drop") %>% 
+  group_by_at(vars(-rel_abund)) %>% 
+  summarise(mean_rel_abund = 100* mean(rel_abund), .groups = "drop") %>% 
+  select(Kingdom:Family, Sample, mean_rel_abund) %>% 
+  pivot_wider(names_from = Sample, values_from = mean_rel_abund, values_fill = 0) %>% 
+  group_by_at(vars(Kingdom:Family)) %>% 
+  rowwise() %>% 
+  mutate(mean = mean(c_across(where(is.numeric)))) %>% 
+  arrange(desc(mean)) %>% 
+  select(-mean) %>% 
+  ungroup() %>% 
+  mutate(across(where(is.numeric), ~round(.x, digits = 2))) %>% 
+  select(Kingdom:Family, everything()) %>% 
+  write_csv(glue::glue("output_data/{proj}_relative_Family_abundances_sorted_by_overall_mean.csv", col_names = T, append = F))
+
+```
+
+```{r plot_bar all families, fig.width=8, fig.height=8}
+
+# paper 1 only
+#ps_Family_lowN
+
+# count n families n = 426
+ps_Family_lowN %>% 
+  as_tibble() %>% 
+  mutate(Family = factor(Family)) %>% 
+  pull(Family) %>% 
+  levels() %>% 
+  length()
+
+# Define a function to find the first non-matching column
+
+# Use rowwise and mutate to apply the function
+ps_Family_taxlabel = ps_Family_lowN %>% 
+  as_tibble() %>% 
+  mutate(across(everything(),  ~str_replace_all(., ",", "."))) %>% 
+  mutate(across(where(~ all(grepl("^-?\\d*\\.?\\d*$", .))), as.numeric)) %>% 
+  select(Sample, Abundance, paper_id:Family) %>%
+  rowwise() %>%
+  mutate(tax_label = case_when(
+    grepl("\\d", Family) ~ {
+      first_non_numeric <- case_when(
+        !grepl("\\d", Order) ~ paste(Order, Family, sep = " "),
+        !grepl("\\d", Class) ~ paste(Class, Family, sep = " "),
+        !grepl("\\d", Phylum) ~ paste(Phylum, Family, sep = " "),
+        !grepl("\\d", Kingdom) ~ paste(Kingdom, Family, sep = " "),
+        TRUE ~ NA_character_
+      )
+      first_non_numeric
+    },
+    TRUE ~ Family
+  ))
+
+Family_abundances <- ps_Family_taxlabel %>% 
+  mutate(Sample_nr = str_sub(Sample, start = 1, end = 2)) %>% 
+  group_by_at(vars(Sample, Sample_nr, sludge_source, substrate, replicate,exp_id, time, tax_label)) %>% 
+  summarise(rel_abund = sum(Abundance), .groups = "drop") %>%
+  group_by(Sample) %>% 
+  mutate(mean_rel_abund = rel_abund/sum(rel_abund)*100) %>% 
+  ungroup() %>% 
+  group_by(Sample, tax_label) %>% 
+  mutate(tax_label = str_replace(tax_label, "(.*)_unclassified", "Unclassified *\\1*"),
+         tax_label = str_replace(tax_label, "^(\\S*)$", "*\\1*"))
+
+# Reduce families to lower number (at least 3%, or else called other)
+Family_pool <- Family_abundances %>% 
+  group_by(tax_label) %>% 
+  summarise(pool = max(mean_rel_abund) < 3, 
+            mean = mean(mean_rel_abund), 
+            .groups = "drop")
+
+# define a color vector using brewer.pal and colorset
+colvec = c(brewer.pal(8,"Dark2"),brewer.pal(8,"Set2"),brewer.pal(8,"Accent"),brewer.pal(8,"Paired"),brewer.pal(12,"Set3"),brewer.pal(9,"Set1"), brewer.pal(9,"YlGnBu"), colorset)
+
+# name the taxon colors
+inner_join(Family_abundances, Family_pool, by="tax_label") %>% 
+  mutate(tax_label = if_else(pool, "Other max.<3%", tax_label)) %>% 
+  group_by(tax_label) %>%
+  summarise(mean_rel_abund = sum(mean_rel_abund), 
+            median = median(mean),
+            .groups = "drop") %>% 
+  mutate(tax_label = factor(tax_label), 
+         tax_label = fct_reorder(tax_label, median, .desc = T)) %>% 
+  arrange(desc(median)) %>% pull(tax_label) %>% unique() -> names(colvec)
+
+colvec["Other max.<3%"] <- "#D3D3D3"
+
+# reshape plot data
+plot_data <-
+inner_join(Family_abundances, Family_pool, by="tax_label") %>% 
+  mutate(tax_label = if_else(pool, "Other max.<3%", tax_label)) %>% 
+  # mutate(Sample = if_else(grepl(".*[^0-9][0-9]{2}$", Sample),
+  #                          Sample,
+  #                          str_c(str_sub(Sample, end = -2),"0", str_sub(Sample, -1)))) %>% 
+  group_by(Sample, Sample_nr, sludge_source, replicate, substrate, time, tax_label) %>% 
+  summarise(mean_rel_abund = sum(mean_rel_abund), 
+            mean = min(mean),
+            .groups = "drop") %>% 
+  mutate(tax_label = factor(tax_label), 
+         tax_label = fct_reorder(tax_label, mean, .desc = T)) 
+
+
+
+# plot the data per sample
+plot_Family = 
+  plot_data %>% 
+ggplot(aes(x=time, y = mean_rel_abund, fill = tax_label)) +
+  geom_col() +
+  scale_fill_manual(name=NULL, 
+                    values = colvec) + # with named color vector ordered by median Family abundance
+  scale_y_continuous(expand = c(0,0)) +
+  labs(x=NULL, y="Relative Abundance (%)") +
+  theme_classic() +
+  theme(axis.text.x = element_markdown(angle = 0, hjust = 0.5),
+        legend.text = element_markdown(),
+        legend.key.size = unit(7, "pt"),
+        legend.position = "bottom",
+        strip.background = element_rect(colour = "white"),
+        strip.text = element_text(face = "bold")) +
+  guides(fill = guide_legend(nrow=12))
+  
+
+# print plot  
+gg_Family = plot_Family + facet_nested_wrap(~sludge_source + replicate + substrate, ncol=4,  scales = "free")
+gg_Family
+
+# save plots
+ggsave(plot = gg_Family, filename = glue("figures/{proj}_barplot_all_Family_reactorsOnly.pdf"), width = 8, height = 6)
+
+```
+
+```{r geom_tile Family}
+
+# pool low abundant families
+taxon_pool <- Family_abundances %>% 
+  group_by(tax_label) %>% 
+  summarise(pool = max(mean_rel_abund) < 3, 
+            mean = mean(mean_rel_abund), 
+            .groups = "drop")
+
+# create dataframe for heatmap
+heatmap_data_long = 
+Family_abundances %>% 
+  group_by(Sample,sludge_source, replicate, substrate,time, tax_label) %>% 
+  summarise(mean_rel_abund = mean(mean_rel_abund), .groups = "drop") %>% 
+inner_join(., Family_pool, by="tax_label") %>% 
+  group_by(Sample,sludge_source, replicate, substrate,time, tax_label) %>% 
+  mutate(tax_label = if_else(pool, "Other max.<3%", tax_label)) %>% 
+  select(Sample, sludge_source, replicate, substrate, time,tax_label, mean_rel_abund, mean, pool) %>% 
+  group_by(Sample, sludge_source, replicate, substrate, time,tax_label) %>% 
+  summarise(sum_rel_abund = sum(mean_rel_abund)) %>% 
+  mutate(tax_label = factor(tax_label), 
+         tax_label = fct_reorder(tax_label, sum_rel_abund, .desc = F)) %>%
+  ungroup()
+
+# determine order of taxa on y axis from mean high to low
+tax_order = 
+heatmap_data_long %>% 
+  mutate(tax_label = as.character(tax_label)) %>% 
+  group_by(tax_label) %>% 
+  summarise(mean = mean(sum_rel_abund)) %>% 
+  arrange(desc(mean)) %>% pull(tax_label)
+
+# create wide format data
+heatmap_data = 
+heatmap_data_long %>% 
+select(Sample, sludge_source, replicate, substrate,time, tax_label,time, sum_rel_abund) %>% 
+  pivot_wider(names_from = tax_label, 
+              values_from = sum_rel_abund) 
+
+# make heatmap
+m <- as.matrix(heatmap_data[, 6:ncol(heatmap_data)])
+clust <- hclust(dist(t(m)))
+
+# plot heatmap
+heatmap_Family_3pct = 
+heatmap_data_long %>% 
+  mutate(tax_label = fct_relevel(tax_label, rev(tax_order))) %>% 
+ggplot(aes(time, tax_label) ) +
+  geom_tile(aes(fill = sum_rel_abund), color = NA) +
+  labs(x = NULL, y=NULL) +
+  #scale_y_discrete(limits = colnames(m)[rev(clust$order)]) +
+  scale_fill_gradient(low = "white", high = "darkred",
+                      name = "Relative\nAbundance (%)\n(\u00B7 <1%)") +
+  theme(axis.text.x = element_text(size = 8, angle = 90, hjust = 1, vjust = 0.5),
+        strip.text = element_text(angle = 0),
+        axis.ticks = element_blank(),
+        axis.text.y = element_markdown(size = 8),
+        plot.background = element_blank(),
+        panel.border = element_rect(colour = "white", fill = NA)) +
+  geom_text(
+  aes(label = ifelse(tax_label != "Other max.<3%" & sum_rel_abund > 3, round(sum_rel_abund, digits = 0), "")),
+  color = "grey50", size = unit(3, "pt")) +
+  geom_text(
+  aes(label = ifelse(tax_label != "Other max.<3%" & sum_rel_abund < 1, ".", "")),
+  color = "grey80", size = unit(5, "pt"), position = position_nudge(y=0.5)) +
+  facet_nested(~sludge_source  + replicate + substrate, space = "free", scales = "free")
+
+print(heatmap_Family_3pct)
+
+ggsave2(plot = heatmap_Family_3pct + 
+                ggtitle(label = "Family heatmap -\nYXIN: PHA - acetate vs. butyrate under low N", 
+                        subtitle = "Families with abundance >3% in at least one sample\nPercent abundance shown in cells when >3%"), 
+        filename = glue("figures/{proj}_heatmap_Family_3pct.pdf"), width = 10, height = 8)
+
+# save plot data with max.<3% others
+heatmap_data_long %>% 
+  mutate(tax_label = fct_relevel(tax_label, rev(tax_order))) %>% 
+  select(Sample, tax_label, sum_rel_abund) %>%
+  pivot_wider(names_from = "Sample", values_from = "sum_rel_abund", values_fill = 0) %>%
+write.xlsx(., file = glue("output_data/{proj}_heatmap_data_Family_table_3pct.xlsx"), col_names = T)
+
+# save plot data without other category
+ps_Family %>% 
+  as_tibble() %>% 
+  select(sludge_source, replicate, substrate, Sample,time, Abundance, Kingdom:Family) %>% 
+  group_by_at(vars(sludge_source, replicate, substrate, Sample,time, Kingdom:Family)) %>% 
+  summarize(rel_abund = sum(Abundance), .groups = "drop") %>% 
+  group_by_at(vars(Sample, Kingdom:Family)) %>% 
+  summarize(mean_rel_abund = 100* mean(rel_abund), .groups = "drop") %>% 
+  mutate(Family = str_replace(Family, "(.*)_unclassified", "Unclassified *\\1*"),
+         Family = str_replace(Family, "^(\\S*)$", "*\\1*")) %>% 
+  pivot_wider(names_from = "Sample", values_from = "mean_rel_abund", values_fill = 0) %>%
+  write.xlsx(., file = glue("output_data/{proj}_heatmap_data_Family_table_all.xlsx"), col_names = T) 
+  
+```
+
+### Beta diversity
+
+```{r total beta diversity rel_abund, message=F, echo=T, eval=F, warning=F, include=T, cache=F}
+
+# recode days as categorical
+colnames(sample_data(psdata_Family_lowN))
+#sample_data(psdata)$sampling_day = as.factor(sample_data(psdata)$sampling_day)
+
+### Beta diversity analysis first
+# input data  = psdata
+psdata_Family_lowN_rel = transform_sample_counts(psdata, function(x) x/sum(x))
+psdata_Family_lowN_clr = microbiome::transform(psdata_Family_lowN, transform = "clr")
+
+sample_data(psdata_Family_lowN_rel)$replicate = factor(sample_data(psdata_Family_lowN_rel)$replicate)
+
+# ordination
+PCoA_BC_Family <- ordinate(psdata_Family_lowN_rel, method = "PCoA", distance = "bray")
+PCoA_Jac_Family <- ordinate(psdata_Family_lowN_rel, method = "PCoA", distance = "jaccard")
+PCoA_uu_Family <- ordinate(psdata_Family_lowN_rel, method = "PCoA", distance = "uunifrac")
+PCoA_wu_Family <- ordinate(psdata_Family_lowN_rel, method = "PCoA", distance = "wunifrac")
+
+nmds_BC_Family <- ordinate(psdata_Family_lowN_rel, method = "NMDS", distance = "bray")
+nmds_Jac_Family <- ordinate(psdata_Family_lowN_rel, method = "NMDS", distance = "jaccard")
+nmds_uu_Family <- ordinate(psdata_Family_lowN_rel, method = "NMDS", distance = "uunifrac")
+nmds_wu_Family <- ordinate(psdata_Family_lowN_rel, method = "NMDS", distance = "wunifrac")
+
+plot_PCoA_BC_Family <- 
+  plot_ordination(physeq = psdata_Family_lowN_rel, 
+                  ordination = PCoA_BC_Family, 
+                  type = "samples", 
+                  axes = c(1,2), 
+                  color = "time", shape = "replicate") + 
+  ggrepel::geom_text_repel(aes(label = Description), size = 2) +
+  scale_color_manual(values = c(brewer.pal(6, "Dark2"))) + 
+  geom_point(size=2) +
+  ggtitle("Bray Curtis\n(Family presence and abundance)") + 
+  facet_nested(~sludge_source+substrate)
+  
+
+plot_PCoA_Jac_Family <- 
+  plot_ordination(physeq = psdata_Family_lowN_rel, 
+                  ordination = PCoA_Jac_Family, 
+                   type = "samples", 
+                  axes = c(1,2), 
+                  color = "time", shape = "replicate") + 
+  ggrepel::geom_text_repel(aes(label = Description), size = 2) +
+  scale_color_manual(values = c(brewer.pal(6, "Dark2"))) + 
+  geom_point(size=2) +
+  ggtitle("Jaccard\n(binary Family presence only)") +
+  facet_nested(~sludge_source + substrate)
+
+plot_PCoA_uu_Family <- 
+  plot_ordination(physeq = psdata_Family_lowN_rel, 
+                  ordination = PCoA_uu_Family, 
+                   type = "samples", 
+                  axes = c(1,2), 
+                  color = "time", shape = "replicate") + 
+  ggrepel::geom_text_repel(aes(label = Description), size = 2) +
+  scale_color_manual(values = c(brewer.pal(6, "Dark2"))) + 
+  geom_point(size=2) +
+  ggtitle("unweighted UniFrac \n(binary Family lineage presence only)") +
+  facet_nested(~sludge_source + substrate)
+
+
+# Combine the plots with shared legend
+combined_plots_Family <- patchwork::wrap_plots(#plot_PCoA_Jac, 
+                                        plot_PCoA_BC_Family, plot_PCoA_uu_Family) +
+  patchwork::plot_layout(guides = "collect", ncol = 1) 
+
+# Display the combined plot
+print(combined_plots_Family)
+
+ggsave(plot = combined_plots_Family, filename = glue("figures/{proj}_plot_beta_diversity_Family_all_rel.pdf"), width = 9, height =6)
+
+
+```
