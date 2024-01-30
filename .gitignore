@@ -41,7 +41,19 @@ vignettes/*.pdf
 *_files/
 Prelim_*
 scripts/__*
+scripts/Ensemble*
+
+# dev scripts
 scripts/*.zip
+scripts/Example*
+scripts/check*
+scripts/mEQO*
+scripts/microbiome_mEQO*
+scripts/*mEQO.R
+scripts/*Nmax.R
+scripts/CAN*
+scripts/remove*
+scripts/transpose_df.R
 
 # manuscripts
 manuscript/
@@ -59,6 +71,7 @@ manuscript/
 /input_data/RDS_files/
 /input_data/*.qzv
 /input_data/*trimmed_demux_seqs.qza
+/input_data/*trimmed_demux_seqs_unzip.qza
 /input_data/*representative_sequences.qza
 /input_data/*metadata.txt
 /input_data/*.xlsx

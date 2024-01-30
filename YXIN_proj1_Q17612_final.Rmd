@@ -343,6 +343,10 @@ psdata_Genus_lowN =
         subset_samples(psdata, paper_id == "first"))>0, 
         subset_samples(psdata, paper_id == "first")), "Genus")
 
+
+prune_taxa(taxa_sums(subset_samples(psdata_samples, paper_id == "first"))>0, 
+           subset_samples(psdata_samples, paper_id == "first"))
+
 # psdata Genus Paper 2: High N conditions
 psdata_Genus_highN = 
   tax_glom(
@@ -477,17 +481,17 @@ Analysis of genus level alpha diversity based on ASV-level rarefied data
 
 # calculate alpha diversity: richness & Shannon on Genus level
 # input = 
-psdata_YXIN_lowN_rare 
+psdata_Genus_lowN
 
 # rarefied
-alpha <- estimate_richness(psdata_YXIN_lowN_rare, measures = c("Observed", "Chao1", "Shannon", "Simpson"))
+alpha <- estimate_richness(psdata_Genus_lowN, measures = c("Observed", "Chao1", "Shannon", "Simpson"))
 alpha$Sample <- row.names(alpha)
 
 metadata = 
-  sample_data(psdata_YXIN_lowN_rare) %>% 
+  sample_data(psdata_Genus_lowN) %>% 
   data.frame() %>% 
   as_tibble() %>% 
-  mutate(Sample = sample_names(psdata_YXIN_lowN_rare)) %>% 
+  mutate(Sample = sample_names(psdata_Genus_lowN)) %>% 
   select(Sample, everything()) 
 
 # join alpha diversity with metadata
@@ -497,19 +501,21 @@ alpha2 <- inner_join(metadata, alpha, by = "Sample") #%>%
 # plot alpha diversity
 Chao1 <- 
 alpha2 %>% 
+  mutate(sludge_source = factor(sludge_source, levels = c("Bath", "Almere"))) %>% 
 ggplot(aes(x=time, y=Chao1, color = substrate, fill = substrate)) +
   #stat_summary(fun = median, geom = "bar", alpha = 0.3) +
   geom_point(aes(#shape = sampling_day, 
                  fill = substrate,
-                 color = substrate),
+                 color = substrate,
+                 shape = factor(replicate)),
                  #position = position_jitter(width = 0.3)
-                 size = 2, show.legend = T) + 
-    geom_line(aes(group = substrate, 
+                 size = 2, show.legend = F) + 
+    geom_line(aes(group = interaction(replicate, substrate), 
                  color = substrate),
                  linewidth = 1,alpha=0.5, show.legend = F) + 
-  scale_color_manual(values = brewer.pal(6, "Paired")) +
-  scale_fill_manual(values = brewer.pal(6, "Paired")) +
-  scale_y_continuous(limits = c(0,NA)) +
+  scale_color_manual(values = c("red", "blue")) +
+  scale_fill_manual(values = c("red", "blue")) +
+  scale_y_continuous(limits = c(150,NA)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   theme(#legend.text = element_markdown(),
@@ -523,7 +529,10 @@ ggplot(aes(x=time, y=Chao1, color = substrate, fill = substrate)) +
   labs(y = expression("Genus Chao1"),
        x = NULL) +
   theme(axis.text.x = element_text(hjust = 0.5)) +
-  facet_nested(~ sludge_source + replicate, scales = "free", space = "free_x")
+  ggrepel::geom_text_repel(aes(label = ifelse(replicate == 1 & time == "48h", substrate, "")), 
+                           size = 3, force_pull = 0, nudge_y = -10, nudge_x = 0.1, min.segment.length = 10, show.legend = F) +
+  theme(strip.text = element_text(face = "bold", size = 12, hjust = 0)) +
+  facet_nested(~ sludge_source, scales = "free", space = "free_x")
 
 
 # print Chao1 Genus
@@ -534,19 +543,21 @@ print(Chao1)
 # plot alpha diversity
 Shannon <- 
 alpha2 %>% 
+  mutate(sludge_source = factor(sludge_source, levels = c("Bath", "Almere"))) %>% 
 ggplot(aes(x=time, y=Shannon, color = substrate, fill = substrate)) +
   #stat_summary(fun = median, geom = "bar", alpha = 0.3) +
-  geom_point(aes(#shape = sampling_day, 
+  geom_point(aes(shape = factor(replicate), 
                  fill = substrate,
-                 color = substrate),
+                 color = substrate)
                  #position = position_jitter(width = 0.3)
                  , size = 2, show.legend = T) + 
-    geom_line(aes(group = substrate, 
-                 color = substrate),
+    geom_line(aes(group = interaction(replicate, substrate), 
+                 color = substrate)
                  , linewidth = 1,alpha=0.5, show.legend = F) + 
-  scale_color_manual(values = brewer.pal(6, "Paired")) +
-  scale_fill_manual(values = brewer.pal(6, "Paired")) +
-  scale_y_continuous(limits = c(0,NA)) +
+  scale_color_manual(values = c("red", "blue")) +
+  scale_fill_manual(values = c("red", "blue")) +
+  scale_shape_discrete(name = "replicate",) +
+  #scale_y_continuous(limits = c(0,NA)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   theme(#legend.text = element_markdown(),
@@ -557,10 +568,14 @@ ggplot(aes(x=time, y=Shannon, color = substrate, fill = substrate)) +
         strip.placement = "outside",
         legend.position = "bottom",
         panel.border = element_rect(colour = "black", fill = NA)) +
-  labs(y = expression("Genus Shannon"),
+  labs(y = expression("Shannon diversity H' (Genus level)"),
        x = NULL) +
   theme(axis.text.x = element_text(hjust = 0.5)) +
-  facet_nested(~ sludge_source + replicate, scales = "free", space = "free_x")
+  ggrepel::geom_text_repel(aes(label = ifelse(replicate == 1 & time == "48h", substrate, "")), 
+                           size = 3, force_pull = 0, nudge_y = 0.3, nudge_x = 0.1, min.segment.length = 10,
+                           show.legend = F) +
+  theme(strip.text = element_text(face = "bold", size = 12, hjust = 0)) +
+  facet_nested(~ sludge_source, scales = "free", space = "free_x")
 
 print(Shannon)
 
@@ -572,7 +587,7 @@ prow =
                    align = "hv",
                    labels = c("A", "B"),
                    hjust = -1, 
-                   nrow = 2),
+                   nrow = 1),
   get_legend(Chao1), 
   nrow = 2 , 
   rel_heights = c(5, 1))
@@ -584,6 +599,28 @@ prow
 # save plot
 ggsave(prow, filename = glue("figures/{proj}_plot_alpha_div.pdf"), width = 7, height = 5)
  
+# save Shannon plot
+ggsave(Shannon, filename = glue("figures/{proj}_plot_alpha_div.pdf"), width = 7, height = 4)
+
+```
+
+```{r alpha statistics}
+
+model_alpha = 
+alpha2 %>% 
+  mutate(sludge_source = factor(sludge_source, levels = c("Bath", "Almere"))) %>% 
+  with(lm(Shannon ~ sludge_source + substrate * time)) 
+
+# anova result
+anova(model_alpha)
+
+# test differential effects of time on Shannon between substrates and sludge
+emmeans_shannon = emmeans::emmeans(model_alpha, pairwise ~ time | substrate + sludge_source, p.adjust="Holm")
+
+# save anova contrasts
+emmeans_shannon$contrasts %>% 
+  as_tibble() %>% 
+  write_csv(glue::glue("output_data/{proj}_anova_result_Shannon_Tukey_pvals.csv"))
 
 ```
 
@@ -731,6 +768,55 @@ gg_Genus
 ggsave(plot = gg_Genus, filename = glue("figures/{proj}_barplot_all_Genus_reactorsOnly.pdf"), width = 8, height = 6)
 
 ```
+
+```{r plot_bars_example_for_paper}
+
+# plot data per timepoint, average over replicates
+average_data = 
+  plot_data %>% 
+  group_by(sludge_source, substrate, time, tax_label) %>% 
+  summarise(mean_rel_abund = mean(mean_rel_abund), sd = sd(mean_rel_abund)) 
+
+# plot data for rep1 only
+rep1_data = 
+  plot_data %>% 
+  filter(replicate == "1")
+
+
+plot_bars = function(data)  {
+  
+plot =   
+ggplot(data = data, aes(x=time, y = mean_rel_abund, fill = tax_label)) +
+  geom_col() +
+  scale_fill_manual(name=NULL, 
+                    values = colvec) + # with named color vector ordered by median Genus abundance
+  scale_y_continuous(expand = c(0,0)) +
+  labs(x=NULL, y="Relative Abundance (%)") +
+  theme_classic() +
+  theme(axis.text.x = element_markdown(angle = 0, hjust = 0.5),
+        legend.text = element_markdown(),
+        legend.key.size = unit(7, "pt"),
+        legend.position = "bottom",
+        strip.background = element_rect(colour = "white"),
+        strip.text = element_text(face = "bold")) +
+  guides(fill = guide_legend(nrow=12)) + 
+  facet_nested_wrap(~sludge_source + substrate, 
+                    ncol=4,  scales = "free")
+
+return(plot)
+}  
+
+average_plot = plot_bars(data = average_data)
+rep1_plot = plot_bars(data = rep1_data)
+
+# save plots
+ggsave(plot = average_plot, 
+       filename = glue("figures/{proj}_barplot_replicate_average_Genus.pdf"), width = 8, height = 4)
+ggsave(plot = rep1_plot,
+       filename = glue("figures/{proj}_barplot_replicate_replicate1_Genus.pdf"), width = 8, height = 4)
+
+```
+
 
 ```{r geom_tile, echo = F, fig.width=10, fig.height=10}
 
@@ -1003,51 +1089,53 @@ colnames(sample_data(psdata_Genus_lowN))
 psdata_Genus_lowN_rel = transform_sample_counts(psdata, function(x) x/sum(x))
 psdata_Genus_lowN_clr = microbiome::transform(psdata_Genus_lowN, transform = "clr")
 
-sample_data(psdata_Genus_lowN_rel)$replicate = factor(sample_data(psdata_Genus_lowN_rel)$replicate)
+sample_data(psdata_Genus_lowN_rel_v2)$replicate = factor(sample_data(psdata_Genus_lowN_rel_v2)$replicate)
+sample_data(psdata_Genus_lowN_rel_v2)$sludge_source = factor(sample_data(psdata_Genus_lowN_rel_v2)$sludge_source, levels = c("Bath", "Almere"))
+
 
 # ordination
-PCoA_BC <- ordinate(psdata_Genus_lowN_rel, method = "PCoA", distance = "bray")
-PCoA_Jac <- ordinate(psdata_Genus_lowN_rel, method = "PCoA", distance = "jaccard")
-PCoA_uu <- ordinate(psdata_Genus_lowN_rel, method = "PCoA", distance = "uunifrac")
-PCoA_wu <- ordinate(psdata_Genus_lowN_rel, method = "PCoA", distance = "wunifrac")
+PCoA_BC <- ordinate(psdata_Genus_lowN_rel_v2, method = "PCoA", distance = "bray")
+PCoA_Jac <- ordinate(psdata_Genus_lowN_rel_v2, method = "PCoA", distance = "jaccard")
+PCoA_uu <- ordinate(psdata_Genus_lowN_rel_v2, method = "PCoA", distance = "uunifrac")
+PCoA_wu <- ordinate(psdata_Genus_lowN_rel_v2, method = "PCoA", distance = "wunifrac")
 
-nmds_BC <- ordinate(psdata_Genus_lowN_rel, method = "NMDS", distance = "bray")
-nmds_Jac <- ordinate(psdata_Genus_lowN_rel, method = "NMDS", distance = "jaccard")
-nmds_uu <- ordinate(psdata_Genus_lowN_rel, method = "NMDS", distance = "uunifrac")
-nmds_wu <- ordinate(psdata_Genus_lowN_rel, method = "NMDS", distance = "wunifrac")
+# nmds_BC <- ordinate(psdata_Genus_lowN_rel_v2, method = "NMDS", distance = "bray")
+# nmds_Jac <- ordinate(psdata_Genus_lowN_rel_v2, method = "NMDS", distance = "jaccard")
+# nmds_uu <- ordinate(psdata_Genus_lowN_rel_v2, method = "NMDS", distance = "uunifrac")
+# nmds_wu <- ordinate(psdata_Genus_lowN_rel_v2, method = "NMDS", distance = "wunifrac")
 
 plot_PCoA_BC <- 
-  plot_ordination(physeq = psdata_Genus_lowN_rel, 
-                  ordination = nmds_BC, 
+  plot_ordination(physeq = psdata_Genus_lowN_rel_v2, 
+                  ordination = PCoA_BC, 
                   type = "samples", 
                   axes = c(1,2), 
                   color = "time", shape = "replicate") + 
-  ggrepel::geom_text_repel(aes(label = Description), size = 2) +
+  ggrepel::geom_text_repel(aes(label = time), size = 2) +
   scale_color_manual(values = c(brewer.pal(6, "Dark2"))) + 
   geom_point(size=2) +
-  ggtitle("Bray Curtis\n(presence and abundance)") + 
+  #ggtitle("Bray Curtis\n(presence and abundance)") + 
   facet_nested(~sludge_source+substrate)
   
 
 plot_PCoA_Jac <- 
-  plot_ordination(physeq = psdata_Genus_lowN_rel, 
+  plot_ordination(physeq = psdata_Genus_lowN_rel_v2, 
                   ordination = PCoA_Jac, 
                    type = "samples", 
                   axes = c(1,2), 
                   color = "time", shape = "replicate") + 
-  ggrepel::geom_text_repel(aes(label = Description), size = 2) +
+  ggrepel::geom_text_repel(aes(label = time), size = 2) +
   scale_color_manual(values = c(brewer.pal(6, "Dark2"))) + 
   geom_point(size=2) +
   ggtitle("Jaccard\n(binary presence only)") +
   facet_nested(~sludge_source + substrate)
 
 plot_PCoA_uu <- 
-  plot_ordination(physeq = psdata_Genus_lowN_rel, 
-                  ordination = nmds_uu, 
+  plot_ordination(physeq = psdata_Genus_lowN_rel_v2, 
+                  ordination = PCoA_uu, 
                    type = "samples", 
                   axes = c(1,2), 
                   color = "time", shape = "replicate") + 
-  ggrepel::geom_text_repel(aes(label = Description), size = 2) +
+  ggrepel::geom_text_repel(aes(label = time), size = 2) +
   scale_color_manual(values = c(brewer.pal(6, "Dark2"))) + 
   geom_point(size=2) +
   ggtitle("unweighted UniFrac \n(binary lineage presence only)") +
@@ -1056,20 +1144,57 @@ plot_PCoA_uu <-
 
 # Combine the plots with shared legend
 combined_plots <- patchwork::wrap_plots(#plot_PCoA_Jac, 
-                                        plot_PCoA_BC, plot_PCoA_uu) +
+                                        #plot_PCoA_uu
+                                        plot_PCoA_BC +
+theme(
+  plot.title = element_text(hjust = 0.1, vjust = -10),
+  panel.background = element_rect(fill='transparent'),
+  panel.grid.major = element_line(colour = "grey90"),
+  strip.text = element_text(face = "bold"),
+  panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.3),
+  axis.line.x = element_line(color="black", size = 0.3),
+  axis.line.y = element_line(color="black", size = 0.3))
+) +
   patchwork::plot_layout(guides = "collect", ncol = 1) 
 
 # Display the combined plot
 combined_plots
 
-ggsave(plot = combined_plots, filename = glue("figures/{proj}_plot_beta_diversity_all_rel.pdf"), width = 9, height =6)
+ggsave(plot = combined_plots, filename = glue("figures/{proj}_plot_beta_diversity_all_rel.pdf"), width = 9, height =3)
 
 
 ```
 
-### Beta diversity per replicate run
-```{r total beta diversity rel_abund per replicate, fig.width=20, fig.height=6, message=F, echo=F, eval=T, warning=F, include=T, cache=F}
+```{r PERMANOVA statistics}
 
+psdata_Genus_lowN_rel = tax_glom(psdata_Genus_lowN_rel_v2, "Genus")
+sample_data(psdata_Genus_lowN_rel)$substrate = factor(sample_data(psdata_Genus_lowN_rel)$substrate)
+
+# sample data
+sam_data <- data.frame(sample_data(psdata_Genus_lowN_rel))
+asv_data <- vegdist(t(otu_table(psdata_Genus_lowN_rel)), method = "bray")
+# calculate adonis permanova on granules only on ASV level Bray-Curtis dissimilarity (tested within sludge source)
+adonis_bc = adonis2(asv_data ~  sludge_source * substrate * time, 
+                    permutations = 999, 
+                    strata = sam_data$sludge_source, 
+                    data = sam_data)
+
+# view PERMANOVA output
+adonis_bc
+
+# test beta dispersion assumption (no significant deviations)
+betadisper_bc <- betadisper(asv_data, with(sam_data, interaction(sludge_source, substrate)))
+permutest(betadisper_bc,  pairwise=T)    
+
+
+```
+
+
+
+### Beta diversity per replicate run
+```{r total beta diversity rel_abund per replicate, fig.width=20, fig.height=6, message=F, echo=F, eval=T, warning=F, include=F, cache=F}
+
+# input data
 psdata_Genus_lowN_rel_v2 = subset_samples(psdata_Genus_lowN_rel, condition == "Low_N")
 
 # split by replicate
@@ -1186,6 +1311,7 @@ plot_ordination_from_list <- function(ordination_list, metric, fix_axes = F) {
 
 # Plot each ordination using the specified metric
 metric_to_plot <- "Jac"  # Change this to "BC", "Jac", "UU", or "WU"
+plots_Bray_Curtis <- plot_ordination_from_list(result_list, physeq_list_reps, metric = "bray")
 plots <- plot_ordination_from_list(ordination_list, metric_to_plot)
 gridExtra::grid.arrange(grobs = plots, ncol = 1)
 
