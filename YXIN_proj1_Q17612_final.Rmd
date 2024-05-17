@@ -648,7 +648,7 @@ ps_Genus_lowN %>%
   select(-mean) %>% 
   ungroup() %>% 
   mutate(across(where(is.numeric), ~round(.x, digits = 2))) %>% 
-  select(Kingdom:Genus, everything()) %>% view
+  select(Kingdom:Genus, everything()) %>% 
   write_csv(glue::glue("output_data/{proj}_relative_Genus_abundances_sorted_by_overall_mean.csv", col_names = T, append = F))
 
 ```
@@ -1082,15 +1082,17 @@ ggsave(plot = combined_plot, filename = glue::glue("figures/{proj}_comined_heatm
 ```{r total beta diversity rel_abund, message=F, fig.width=15, fig.height=6, echo=F, eval=T, warning=F, include=T, cache=F}
 
 # recode days as categorical
-colnames(sample_data(psdata_Genus_lowN))
+colnames(phyloseq::sample_data(psdata_Genus_lowN))
 
 ### Beta diversity analysis first
 # input data  = psdata
 psdata_Genus_lowN_rel = transform_sample_counts(psdata, function(x) x/sum(x))
 psdata_Genus_lowN_clr = microbiome::transform(psdata_Genus_lowN, transform = "clr")
 
-sample_data(psdata_Genus_lowN_rel_v2)$replicate = factor(sample_data(psdata_Genus_lowN_rel_v2)$replicate)
-sample_data(psdata_Genus_lowN_rel_v2)$sludge_source = factor(sample_data(psdata_Genus_lowN_rel_v2)$sludge_source, levels = c("Bath", "Almere"))
+psdata_Genus_lowN_rel_v2 = subset_samples(psdata_Genus_lowN_rel, condition == "Low_N")
+
+phyloseq::sample_data(psdata_Genus_lowN_rel_v2)$replicate = factor(phyloseq::sample_data(psdata_Genus_lowN_rel_v2)$replicate)
+phyloseq::sample_data(psdata_Genus_lowN_rel_v2)$sludge_source = factor(phyloseq::sample_data(psdata_Genus_lowN_rel_v2)$sludge_source, levels = c("Bath", "Almere"))
 
 
 # ordination
@@ -1178,7 +1180,11 @@ adonis_bc = adonis2(asv_data ~  sludge_source * substrate * time,
                     permutations = 999, 
                     strata = sam_data$sludge_source, 
                     data = sam_data)
-
+## three-way interaction with time not significant, 2-way interaction for sludge_source * substrate also not significant
+adonis_bc = adonis2(asv_data ~  sludge_source + substrate + time, 
+                    permutations = 999, 
+                    strata = sam_data$sludge_source, 
+                    data = sam_data)
 # view PERMANOVA output
 adonis_bc
 
@@ -1192,10 +1198,8 @@ permutest(betadisper_bc,  pairwise=T)
 
 
 ### Beta diversity per replicate run
-```{r total beta diversity rel_abund per replicate, fig.width=20, fig.height=6, message=F, echo=F, eval=T, warning=F, include=F, cache=F}
+```{r total beta diversity rel_abund per replicate, fig.width=20, fig.height=6, message=F, echo=F, eval=T, warning=F, include=T, cache=F}
 
-# input data
-psdata_Genus_lowN_rel_v2 = subset_samples(psdata_Genus_lowN_rel, condition == "Low_N")
 
 # split by replicate
 # list objects
@@ -1311,7 +1315,6 @@ plot_ordination_from_list <- function(ordination_list, metric, fix_axes = F) {
 
 # Plot each ordination using the specified metric
 metric_to_plot <- "Jac"  # Change this to "BC", "Jac", "UU", or "WU"
-plots_Bray_Curtis <- plot_ordination_from_list(result_list, physeq_list_reps, metric = "bray")
 plots <- plot_ordination_from_list(ordination_list, metric_to_plot)
 gridExtra::grid.arrange(grobs = plots, ncol = 1)
 
